@@ -1,17 +1,13 @@
 <?php
 // Configuración general
-$base = "https1.johneasy906.workers.dev/"; // o tu worker base
+$base = "https://easy1.johneasy906.workers.dev/";
 $validKey = "Proxy-day-9RTWVl1lGl4jtVEJ";
 
-// 1. Obtener cabeceras y URI solicitada
 $headers = getallheaders();
 $clientKey = $headers['X-API-KEY'] ?? $headers['x-api-key'] ?? '';
 $uri = $_SERVER['REQUEST_URI'] ?? '';
 
-// Opcional: Validar la key si viene del cliente principal
-// if ($clientKey !== $validKey) { ... }
-
-// 2. Bloqueo de comportamiento de hacks / penalizaciones
+// 1. Bloqueo de hacks (Sin cambios)
 if (
     strpos($uri, "/CheckHackBehavior") !== false ||
     strpos($uri, "/GetMatchmakingBlacklist") !== false ||
@@ -22,9 +18,25 @@ if (
     exit;
 }
 
-// 3. Manejo de fileinfo
+// 2. RUTA DE IMAGEN AISLADA (Solo actúa si buscas /foto o /image, NO interfiere con el juego)
+if (strpos($uri, "/foto") !== false || strpos($uri, "/image") !== false) {
+    // Sube una imagen llamada "imagen.png" en la misma carpeta de este script PHP
+    $rutaImagen = "imagen.png"; 
+    
+    if (file_exists($rutaImagen)) {
+        header("Content-Type: image/png"); // Muestra la foto sin descargar
+        header("Content-Disposition: inline; filename=\"imagen.png\"");
+        readfile($rutaImagen);
+        exit;
+    } else {
+        http_response_code(404);
+        echo "Sube una imagen llamada 'imagen.png' al servidor.";
+        exit;
+    }
+}
+
+// 3. Manejo de fileinfo (Funcionalidad original intacta)
 if (strpos($uri, "/1107/fileinfo") !== false || strpos($uri, "/fileinfo") !== false) {
-    // Validar key contra el servicio base
     $ch = curl_init($base . "fileinfo");
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_HTTPHEADER, ["X-API-KEY: " . $validKey]);
@@ -38,34 +50,24 @@ if (strpos($uri, "/1107/fileinfo") !== false || strpos($uri, "/fileinfo") !== fa
         exit;
     }
 
-    // Obtener el contenido original desde la base
     $ch = curl_init($base . "fileinfo");
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_HTTPHEADER, ["X-API-KEY: " . $validKey]);
     $raw = curl_exec($ch);
     curl_close($ch);
 
-    // Reemplazos de cadenas según la ruta
-    if (strpos($uri, "/1107/fileinfo") !== false) {
-        $raw = str_replace(
-            "cache_res,CfnFf59sr1SbsqQ6JqTKsEusjKs=,63056,0,yJzKtvtc4LBuiW/EnmIDajFP/EU=,13294,True,0",
-            "cache_res,GkLlYqzsX4AtTdE55sDMR-h9sJOI~3D,63056,0,r2Mfay9FWf4SnCFDwNMLYvwtxJM=,10007,True,0",
-            $raw
-        );
-    } else {
-        $raw = str_replace(
-            "cache_res,CfnFf59sr1SbsqQ6JqTKsEusjKs=,63056,0,yJzKtvtc4LBuiW/EnmIDajFP/EU=,13294,True,0",
-            "cache_res,GkLlYqzsX4AtTdE55sDMR-h9sJOI~3D,63056,0,r2Mfay9FWf4SnCFDwNMLYvwtxJM=,10007,True,0",
-            $raw
-        );
-    }
+    $raw = str_replace(
+        "cache_res,CfnFf59sr1SbsqQ6JqTKsEusjKs=,63056,0,yJzKtvtc4LBuiW/EnmIDajFP/EU=,13294,True,0",
+        "cache_res,GkLlYqzsX4AtTdE55sDMR-h9sJOI~3D,63056,0,r2Mfay9FWf4SnCFDwNMLYvwtxJM=,10007,True,0",
+        $raw
+    );
 
     http_response_code(200);
     echo $raw;
     exit;
 }
 
-// 4. Manejo de Shaders y Cache Res
+// 4. Shaders y Assets del juego (Funcionalidad original intacta)
 $route = "";
 if (strpos($uri, "/1107/gameassetbundles/shaders") !== false) {
     $route = "x-shader";
@@ -77,7 +79,6 @@ if (strpos($uri, "/1107/gameassetbundles/shaders") !== false) {
     exit;
 }
 
-// Petición al worker base para obtener el asset/shader
 $ch = curl_init($base . $route);
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 curl_setopt($ch, CURLOPT_HTTPHEADER, ["X-API-KEY: " . $validKey]);
@@ -91,9 +92,9 @@ if ($rawStatus !== 200) {
     exit;
 }
 
-// Entregar la respuesta binaria/stream desde PHP
 header("Content-Type: application/octet-stream");
 http_response_code(200);
 echo $rawRes;
 exit;
 ?>
+
